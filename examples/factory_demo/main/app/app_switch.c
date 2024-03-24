@@ -32,8 +32,10 @@ esp_err_t app_switch_set_power(bool power)
 
     if (power) {
         g_switch_on = true;
+        bsp_display_backlight_on();
     } else {
         g_switch_on = false;
+        bsp_display_backlight_off();
     }
     ui_dev_ctrl_set_state(UI_DEV_SWITCH, g_switch_on);
 

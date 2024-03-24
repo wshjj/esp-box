@@ -25,6 +25,7 @@
 #include "app_sntp.h"
 #include "ui_main.h"
 #include "ui_net_config.h"
+#include "esp_pm.h"
 
 static const int WIFI_STA_CONNECT_OK    = BIT0;
 static const int WIFI_PROV_EVENT_START  = BIT1;
@@ -216,6 +217,20 @@ void app_wifi_init(void)
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
+
+    #if CONFIG_PM_ENABLE
+    // Configure dynamic frequency scaling:
+    // maximum and minimum frequencies are set in sdkconfig,
+    // automatic light sleep is enabled if tickless idle support is enabled.
+    esp_pm_config_t pm_config = {
+            .max_freq_mhz = 160,
+            .min_freq_mhz = 40,
+    #if CONFIG_FREERTOS_USE_TICKLESS_IDLE
+            .light_sleep_enable = true
+    #endif
+        };
+        ESP_ERROR_CHECK( esp_pm_configure(&pm_config) );
+    #endif // CONFIG_PM_ENABLE
 
     /* Initialize Wi-Fi including netif with default config */
     esp_netif_create_default_wifi_sta();

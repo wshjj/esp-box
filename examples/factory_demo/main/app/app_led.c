@@ -160,8 +160,8 @@ esp_err_t app_pwm_led_init(gpio_num_t gpio_r, gpio_num_t gpio_g, gpio_num_t gpio
         ledc_timer_config_t ledc_timer = {
             .speed_mode       = LEDC_LOW_SPEED_MODE,
             .timer_num        = LEDC_TIMER_0,
-            .duty_resolution  = LEDC_TIMER_8_BIT,
-            .freq_hz          = 8192,
+            .duty_resolution  = LEDC_TIMER_13_BIT,
+            .freq_hz          = 50,
             .clk_cfg          = LEDC_AUTO_CLK
         };
         ret_val |= ledc_timer_config(&ledc_timer);
@@ -172,7 +172,7 @@ esp_err_t app_pwm_led_init(gpio_num_t gpio_r, gpio_num_t gpio_g, gpio_num_t gpio
             .timer_sel      = LEDC_TIMER_0,
             .intr_type      = LEDC_INTR_DISABLE,
             .gpio_num       = gpio_r,
-            .duty           = 0,
+            .duty           = 1000,
             .hpoint         = 0
         };
         ret_val |= ledc_channel_config(&ledc_channel_red);
@@ -183,7 +183,7 @@ esp_err_t app_pwm_led_init(gpio_num_t gpio_r, gpio_num_t gpio_g, gpio_num_t gpio
             .timer_sel      = LEDC_TIMER_0,
             .intr_type      = LEDC_INTR_DISABLE,
             .gpio_num       = gpio_g,
-            .duty           = 0,
+            .duty           = 800,
             .hpoint         = 0
         };
         ret_val |= ledc_channel_config(&ledc_channel_green);
@@ -240,15 +240,19 @@ esp_err_t app_pwm_led_deinit(void)
     return ESP_ERR_NOT_SUPPORTED;
 }
 
-static void update_pwm_led(uint8_t r, uint8_t g, uint8_t b)
+static void update_pwm_led(uint32_t r, uint32_t g, uint8_t b)
 {
     if (BOTTOM_ID_UNKNOW == bsp_board_get_sensor_handle()->get_bottom_id()) {
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_RED, r);
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_GREEN, g);
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_BLUE, b);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_RED);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_GREEN);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_BLUE);
+        if(r) {
+            ledc_set_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_RED, r);
+            ledc_update_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_RED);
+        }
+        if(g) {
+            ledc_set_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_GREEN, g);
+            ledc_update_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_GREEN);
+        }
+        // ledc_set_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_BLUE, b);
+        // ledc_update_duty(LEDC_LOW_SPEED_MODE, LED_CHANNEL_BLUE);
     }
 }
 
@@ -283,23 +287,28 @@ esp_err_t app_pwm_led_set_all_hsv(uint16_t h, uint8_t s, uint8_t v)
 esp_err_t app_pwm_led_set_power(bool power)
 {
     esp_err_t ret_val = ESP_OK;
-    uint8_t red = 0;
-    uint8_t green = 0;
-    uint8_t blue = 0;
+    // uint8_t red = 0;
+    // uint8_t green = 0;
+    // uint8_t blue = 0;
 
-    if (power) {
+    if (power) { // 开灯，下舵机，800->950->800
         g_led_state.on = true;
+        update_pwm_led(0, 950, 0);
+        vTaskDelay(pdMS_TO_TICKS(500));
+        update_pwm_led(0, 800, 0);
         ui_dev_ctrl_set_state(UI_DEV_LIGHT, 1);
-    } else {
+    } else { // 关灯，上舵机，1000->800->1000
         g_led_state.on = false;
-        update_pwm_led(0, 0, 0);
+        update_pwm_led(800, 0, 0);
+        vTaskDelay(pdMS_TO_TICKS(500));
+        update_pwm_led(1000, 0, 0);
         ui_dev_ctrl_set_state(UI_DEV_LIGHT, 0);
         return ret_val;
     }
-    red = g_gamma_table[g_led_state.r];
-    green = g_gamma_table[g_led_state.g];
-    blue = g_gamma_table[g_led_state.b];
-    update_pwm_led(red, green, blue);
+    // red = g_gamma_table[g_led_state.r];
+    // green = g_gamma_table[g_led_state.g];
+    // blue = g_gamma_table[g_led_state.b];
+    // update_pwm_led(800, 0, 0);
     return ret_val;
 }
 
