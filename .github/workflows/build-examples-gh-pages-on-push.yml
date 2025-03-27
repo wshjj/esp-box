@@ -34,7 +34,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  delete-old-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old artifacts
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: build-images-* # Delete all artifacts with name starting with build-images-
+
   job1:
+    needs: [delete-old-artifacts]
     runs-on: ubuntu-latest
     container: espressif/idf:release-v5.1
     strategy:
@@ -67,7 +76,6 @@ jobs:
           pip install "idf_build_apps<2.0"
 
           cd $GITHUB_WORKSPACE/examples/${{matrix.build-dir}}
-          # diff sdkconfig.defaults ${{matrix.boards}} | grep '^>' | sed 's/^> *//' | grep -v '^#' | sed 's/.*/\n&/' >> sdkconfig.defaults
           comm -23 <(grep -v '^#' ${{matrix.boards}} | sort) <(grep -v '^#' sdkconfig.defaults | sort) | sed 's/.*/\n&/' >> sdkconfig.defaults
 
           if [[ ${{matrix.build-dir}} == chatgpt_demo ]]; then
@@ -82,12 +90,14 @@ jobs:
           esptool.py --chip esp32s3 merge_bin -o "$GITHUB_WORKSPACE/images/${{matrix.build-dir}}_${{matrix.boards}}.bin" @flash_args
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: build-images
+          name: build-images-${{matrix.build-dir}}-${{matrix.boards}}
           path: images/
+          overwrite: true
 
   job2:
+    needs: [delete-old-artifacts]
     runs-on: ubuntu-latest
     container: espressif/esp-matter:latest_idf_v5.1.1
     strategy:
@@ -104,7 +114,7 @@ jobs:
         run: |
           . $IDF_PATH/export.sh
           . $ESP_MATTER_PATH/export.sh
-          pip install --upgrade idf-component-manager
+          pip install --upgrade "idf-component-manager~=1.2"
           pip install "idf_build_apps<2.0"
 
           cd $GITHUB_WORKSPACE/examples/${{matrix.build-dir}}
@@ -115,10 +125,11 @@ jobs:
           esptool.py --chip esp32s3 merge_bin -o "$GITHUB_WORKSPACE/images/${{matrix.build-dir}}_${{matrix.boards}}.bin" @flash_args
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: build-images
+          name: build-images-${{matrix.build-dir}}-${{matrix.boards}}
           path: images/
+          overwrite: true
 
   deploy:
     needs: [job1, job2]
@@ -134,27 +145,28 @@ jobs:
           submodules: 'recursive'
 
       - name: Download builds
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: build-images
+          pattern: build-images-*
           path: images/
+          merge-multiple: true
 
       - name: generate launchpad config
         run: |
           cd images/
-          ls
+          mv $GITHUB_WORKSPACE/bin/*.bin ./
+          ls *
           $GITHUB_WORKSPACE/tools/launchpad/rename.sh $GITHUB_WORKSPACE
-          ls
           $GITHUB_WORKSPACE/tools/launchpad/generate_launchpad_config.sh $GITHUB_REPOSITORY
 
       - name: Setup Pages
         uses: actions/configure-pages@v2
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: images/
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
