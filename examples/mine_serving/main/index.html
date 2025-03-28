@@ -1,0 +1,56 @@
+<table class="fixed" border="0" style="width: 100%;">
+    <col width="50%" /><col width="50%" />
+    <tr>
+        <td colspan="2" style="padding: 10px;">
+            <h2 style="font-size: xxx-large;">ESP32 control Server</h2>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding: 10px;">
+            <label style="font-size: xx-large;" for="switchOn">open switch</label>
+        </td>
+        <td style="padding: 10px;">
+            <button style="font-size: xxx-large;" id="switchOn" type="button" onclick="upload(1)">OPEN</button>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding: 10px;">
+            <label style="font-size: xx-large;" for="switchOff">close switch</label>
+        </td>
+        <td style="padding: 10px;">
+            <button style="font-size: xxx-large;" id="switchOff" type="button" onclick="upload(0)">CLOSE</button>
+        </td>
+    </tr>
+</table>
+<script>
+function upload(param) {
+    var url_path = "/switch/";
+
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (xhttp.readyState == 4) {
+            if (xhttp.status == 200) {
+                console.log("success!");
+            } else if (xhttp.status == 0) {
+                alert("Server closed the connection abruptly!");
+                location.reload()
+            } else {
+                alert(xhttp.status + " Error!\n" + xhttp.responseText);
+                location.reload()
+            }
+        }
+    };
+    
+    if (param == 1) {
+        var postStr = "on";
+        xhttp.open("POST", url_path, true);
+        xhttp.send(postStr);
+    } else if (param == 0) {
+        var postStr = "off";
+        xhttp.open("POST", url_path, true);
+        xhttp.send(postStr);
+    } else {
+        alert("param is error!");
+    }
+}
+</script>
